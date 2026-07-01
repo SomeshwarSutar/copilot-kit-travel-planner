@@ -20,6 +20,7 @@ automatically — no extra wiring required.
 from __future__ import annotations
 
 import json
+import logging
 from operator import add
 from typing import Annotated
 
@@ -34,9 +35,35 @@ from typing_extensions import TypedDict
 
 load_dotenv()
 
+# ── Logger ────────────────────────────────────────────────────────────────────
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
+    datefmt="%H:%M:%S",
+)
+
 # ── Model ─────────────────────────────────────────────────────────────────────
 
 _model = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite", temperature=0.7)
+
+
+def _extract_text(content: object) -> str:
+    """Normalise a model response content to a plain string.
+
+    Newer versions of langchain-google-genai return content as a list of
+    content-block dicts  e.g. [{'type': 'text', 'text': '...', ...}]
+    instead of a bare string.  This helper handles both forms.
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return next(
+            (block["text"] for block in content if isinstance(block, dict) and block.get("type") == "text"),
+            "",
+        )
+    return str(content)
 
 
 # ── Shared state ──────────────────────────────────────────────────────────────
@@ -100,9 +127,10 @@ def _search_flights_node(state: TravelState) -> dict:
             HumanMessage(content="Generate the flight options now."),
         ]
     )
+    logger.debug("[flights] model response: %s", resp.content)
 
     try:
-        flights: list[Flight] = json.loads(resp.content)
+        flights: list[Flight] = json.loads(_extract_text(resp.content))
         if not isinstance(flights, list):
             raise ValueError("not a list")
     except Exception:
@@ -154,9 +182,10 @@ def _search_hotels_node(state: TravelState) -> dict:
             HumanMessage(content="Generate the hotel options now."),
         ]
     )
+    logger.debug("[hotels] model response: %s", resp.content)
 
     try:
-        hotels: list[Hotel] = json.loads(resp.content)
+        hotels: list[Hotel] = json.loads(_extract_text(resp.content))
         if not isinstance(hotels, list):
             raise ValueError("not a list")
     except Exception:
@@ -204,9 +233,10 @@ def _plan_experiences_node(state: TravelState) -> dict:
             HumanMessage(content="Generate the experiences now."),
         ]
     )
+    logger.debug("[experiences] model response: %s", resp.content)
 
     try:
-        experiences: list[Experience] = json.loads(resp.content)
+        experiences: list[Experience] = json.loads(_extract_text(resp.content))
         if not isinstance(experiences, list):
             raise ValueError("not a list")
     except Exception:
@@ -287,6 +317,16 @@ def supervisor_node(state: TravelState) -> dict:
             ),
             *state["messages"],
         ]
+    )
+    logger.debug(
+        "[supervisor] decision: origin=%r destination=%r needs_flights=%s "
+        "needs_hotels=%s needs_experiences=%s message=%r",
+        decision.origin,
+        decision.destination,
+        decision.needs_flights,
+        decision.needs_hotels,
+        decision.needs_experiences,
+        decision.message,
     )
 
     update: dict = {
