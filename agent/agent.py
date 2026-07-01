@@ -28,6 +28,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import add_messages
 from pydantic import BaseModel
 from typing_extensions import TypedDict
 
@@ -35,7 +36,7 @@ load_dotenv()
 
 # ── Model ─────────────────────────────────────────────────────────────────────
 
-_model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.7)
+_model = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite", temperature=0.7)
 
 
 # ── Shared state ──────────────────────────────────────────────────────────────
@@ -66,7 +67,7 @@ class Experience(TypedDict):
 
 class TravelState(TypedDict):
     # Shared across parent + all subgraphs
-    messages: Annotated[list[BaseMessage], add]
+    messages: Annotated[list[BaseMessage], add_messages]
     origin: str
     destination: str
     flights: list[Flight]
@@ -263,7 +264,7 @@ def supervisor_node(state: TravelState) -> dict:
     - Which sub-agents to activate
     - A conversational reply (used only when no sub-agents are needed)
     """
-    structured = _model.with_structured_output(_SupervisorDecision)
+    structured = _model.with_structured_output(_SupervisorDecision, method="function_calling")
     decision: _SupervisorDecision = structured.invoke(
         [
             SystemMessage(
