@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* CopilotKit chat panel fills its container */
+.copilotKitChat {
+  height: 100%;
+}
