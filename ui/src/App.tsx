@@ -48,11 +48,6 @@ function DemoContent() {
               "Plan your perfect trip with AI specialists!\n\nTry: **Plan a trip from Amsterdam to San Francisco**",
             placeholder: "Where would you like to travel?",
           }}
-          instructions={
-            "You are a friendly travel planning assistant. " +
-            "Help users plan trips by coordinating flights, hotels and experiences. " +
-            "Keep responses concise and upbeat."
-          }
         />
       </aside>
     </div>
